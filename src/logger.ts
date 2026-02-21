@@ -114,4 +114,10 @@ export const logger = {
       `${timestamp()} ${DIM}${groupCount} agents completed, ${filesWritten} file(s) written${RESET}`,
     );
   },
+
+  configReload(filename: string) {
+    console.log(
+      `${timestamp()} ${CYAN}config reloaded${RESET}  ${DIM}${filename}${RESET}`,
+    );
+  },
 };

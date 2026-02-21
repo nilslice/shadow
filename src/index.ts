@@ -6,6 +6,7 @@ import { startWatcher } from "./watcher";
 import { findFilesWithUnresolvedImports, findFilesWithTypeHoles } from "./filter";
 import { logger } from "./logger";
 import { partitionWork } from "./parallel";
+import { loadProjectConfig } from "./project-config";
 
 function parseArgs(): {
   projectRoot: string;
@@ -78,6 +79,10 @@ async function main() {
     logger.dryRunBanner();
   }
 
+  // Load project-level agent configuration (CLAUDE.md, AGENTS.md, .agents/, SKILLS/, MCP)
+  const initialConfig = await loadProjectConfig(projectRoot);
+  const configRef = { current: initialConfig };
+
   // Start watcher first, then create agent with watcher reference.
   // The callback captures `agent` by closure - it's assigned before
   // any file change can fire (debounce ensures a delay).
@@ -91,11 +96,18 @@ async function main() {
     scopeDir,
     (changedFiles) => onTrigger(changedFiles),
     debounceMs,
+    async (changedConfigFiles) => {
+      // Live reload: update configRef in place so the next inference call picks up the new config
+      configRef.current = await loadProjectConfig(projectRoot);
+      for (const f of changedConfigFiles) {
+        logger.configReload(f.split("/").pop() ?? f);
+      }
+    },
   );
 
   const MAX_CASCADE_DEPTH = 3;
 
-  agent = createShadowAgent({ projectRoot, scopeDir, verbose, watcher, dryRun });
+  agent = createShadowAgent({ projectRoot, scopeDir, verbose, watcher, dryRun, configRef });
 
   async function onTrigger(changedFiles: string[], cascadeDepth = 0) {
     if (running && cascadeDepth === 0) {
@@ -158,6 +170,7 @@ async function main() {
             watcher,
             dryRun,
             workerId: group.id,
+            configRef,
           }),
         );
 

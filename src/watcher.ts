@@ -1,5 +1,6 @@
 import { watch } from "node:fs";
-import { resolve, relative } from "node:path";
+import { resolve } from "node:path";
+import { isConfigFile } from "./project-config";
 
 const IGNORE_DIRS = new Set([
   ".git",
@@ -41,9 +42,12 @@ export function startWatcher(
   scopeDir: string,
   onChanges: (changedFiles: string[]) => void,
   debounceMs: number,
+  onConfigChange?: (changedFiles: string[]) => void,
 ): WatcherHandle {
   const pendingChanges = new Set<string>();
+  const pendingConfigChanges = new Set<string>();
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  let configDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Track files the agent recently wrote to avoid feedback loops.
   // Entries expire after a short window.
@@ -69,6 +73,22 @@ export function startWatcher(
 
     if (isRecentlyWritten(fullPath)) return;
 
+    // Config files are handled separately and never sent to the agent
+    if (isConfigFile(filename)) {
+      if (onConfigChange) {
+        pendingConfigChanges.add(fullPath);
+        if (configDebounceTimer) clearTimeout(configDebounceTimer);
+        configDebounceTimer = setTimeout(() => {
+          const files = [...pendingConfigChanges];
+          pendingConfigChanges.clear();
+          if (files.length > 0) {
+            onConfigChange(files);
+          }
+        }, debounceMs);
+      }
+      return;
+    }
+
     pendingChanges.add(fullPath);
 
     if (debounceTimer) clearTimeout(debounceTimer);
@@ -84,6 +104,7 @@ export function startWatcher(
   return {
     close() {
       if (debounceTimer) clearTimeout(debounceTimer);
+      if (configDebounceTimer) clearTimeout(configDebounceTimer);
       watcher.close();
     },
     addWrittenFile(filePath: string) {
