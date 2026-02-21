@@ -6,6 +6,8 @@ import { startWatcher } from "./watcher";
 import { findFilesWithUnresolvedImports, findFilesWithTypeHoles } from "./filter";
 import { logger } from "./logger";
 import { partitionWork } from "./parallel";
+import { loadProjectConfig } from "./project-config";
+import type { ProjectConfig } from "./project-config";
 
 function parseArgs(): {
   projectRoot: string;
@@ -78,6 +80,10 @@ async function main() {
     logger.dryRunBanner();
   }
 
+  // Load project config (CLAUDE.md, AGENTS.md, .agents/, SKILLS/, MCP config)
+  const initialConfig = await loadProjectConfig(projectRoot);
+  const configRef: { current: ProjectConfig } = { current: initialConfig };
+
   // Start watcher first, then create agent with watcher reference.
   // The callback captures `agent` by closure - it's assigned before
   // any file change can fire (debounce ensures a delay).
@@ -86,16 +92,22 @@ async function main() {
   let queued = false;
   let lastChangedFiles: string[] = [];
 
+  async function onConfigChange(changedFiles: string[]) {
+    logger.configReload(changedFiles);
+    configRef.current = await loadProjectConfig(projectRoot);
+  }
+
   const watcher = startWatcher(
     projectRoot,
     scopeDir,
     (changedFiles) => onTrigger(changedFiles),
     debounceMs,
+    onConfigChange,
   );
 
   const MAX_CASCADE_DEPTH = 3;
 
-  agent = createShadowAgent({ projectRoot, scopeDir, verbose, watcher, dryRun });
+  agent = createShadowAgent({ projectRoot, scopeDir, verbose, watcher, dryRun, configRef });
 
   async function onTrigger(changedFiles: string[], cascadeDepth = 0) {
     if (running && cascadeDepth === 0) {
@@ -158,6 +170,7 @@ async function main() {
             watcher,
             dryRun,
             workerId: group.id,
+            configRef,
           }),
         );
 

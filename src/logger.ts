@@ -114,4 +114,11 @@ export const logger = {
       `${timestamp()} ${DIM}${groupCount} agents completed, ${filesWritten} file(s) written${RESET}`,
     );
   },
+
+  configReload(changedFiles: string[]) {
+    const names = changedFiles.map((f) => f.split("/").pop()).join(", ");
+    console.log(
+      `${timestamp()} ${CYAN}config reloaded${RESET} ${DIM}${names}${RESET}`,
+    );
+  },
 };

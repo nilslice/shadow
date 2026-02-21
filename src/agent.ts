@@ -15,6 +15,7 @@ import { createScopeHook } from "./scope";
 import { systemPrompt, buildPrompt, buildWorkerPrompt } from "./prompt";
 import { logger } from "./logger";
 import type { WatcherHandle } from "./watcher";
+import type { ProjectConfig } from "./project-config";
 
 export type UnresolvedHint = { file: string; unresolved: string[] };
 export type { TypeHoleResult } from "./filter";
@@ -34,8 +35,9 @@ export function createShadowAgent(options: {
   verbose: boolean;
   watcher?: WatcherHandle;
   dryRun?: boolean;
+  configRef?: { current: ProjectConfig };
 }): ShadowAgent {
-  const { projectRoot, scopeDir, verbose, watcher, dryRun = false } = options;
+  const { projectRoot, scopeDir, verbose, watcher, dryRun = false, configRef } = options;
 
   let sessionId: string | undefined;
   let currentTriggerFiles: string[] = [];
@@ -144,16 +146,20 @@ export function createShadowAgent(options: {
 
     const prompt = await buildPrompt(changedFiles, projectRoot, unresolvedHints, typeHoleHints);
 
+    const config = configRef?.current;
     const response = query({
       prompt,
       options: {
         cwd: projectRoot,
-        systemPrompt: systemPrompt(projectRoot),
+        systemPrompt: systemPrompt(projectRoot, config?.projectInstructions),
         allowedTools: ["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
         permissionMode: "bypassPermissions",
         allowDangerouslySkipPermissions: true,
         maxTurns: 20,
         ...(sessionId ? { resume: sessionId } : {}),
+        ...(config?.mcpServers && Object.keys(config.mcpServers).length > 0
+          ? { mcpServers: config.mcpServers }
+          : {}),
         hooks: {
           PreToolUse: [
             {
@@ -263,6 +269,7 @@ export function createWorkerAgent(options: {
   dryRun?: boolean;
   workerId: number;
   claimedPaths?: Set<string>;
+  configRef?: { current: ProjectConfig };
 }): ShadowAgent {
   const {
     projectRoot,
@@ -272,6 +279,7 @@ export function createWorkerAgent(options: {
     dryRun = false,
     workerId,
     claimedPaths,
+    configRef,
   } = options;
 
   let sessionId: string | undefined;
@@ -342,15 +350,19 @@ export function createWorkerAgent(options: {
       workerId,
     );
 
+    const config = configRef?.current;
     const response = query({
       prompt,
       options: {
         cwd: projectRoot,
-        systemPrompt: systemPrompt(projectRoot),
+        systemPrompt: systemPrompt(projectRoot, config?.projectInstructions),
         allowedTools: ["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
         permissionMode: "bypassPermissions",
         allowDangerouslySkipPermissions: true,
         maxTurns: 10,
+        ...(config?.mcpServers && Object.keys(config.mcpServers).length > 0
+          ? { mcpServers: config.mcpServers }
+          : {}),
         hooks: {
           PreToolUse: [
             {

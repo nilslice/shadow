@@ -3,8 +3,8 @@ import type { TypeHoleResult } from "./filter";
 
 const MAX_FILE_LINES = 500;
 
-export function systemPrompt(projectRoot: string): string {
-  return `You are shadow, an AI agent that watches a developer's project and automatically generates missing implementations.
+export function systemPrompt(projectRoot: string, projectInstructions?: string): string {
+  const base = `You are shadow, an AI agent that watches a developer's project and automatically generates missing implementations.
 
 When triggered with changed files, you must:
 
@@ -23,6 +23,12 @@ When triggered with changed files, you must:
 10. When type holes are detected (TODO comments, throw new Error("not implemented"), empty stubs), fill in reasonable implementations. You ARE allowed to edit the user's file for these specific holes. Only modify the marked sections - do not restructure or rewrite other parts of the file.
 
 Project root: ${projectRoot}`;
+
+  if (projectInstructions) {
+    return `${base}\n\n# Project Instructions\n\n${projectInstructions}`;
+  }
+
+  return base;
 }
 
 // Track previous file contents for diffing
