@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+      - run: bun run typecheck
+      - run: bun test
+
+  build:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target: bun-linux-x64
+            artifact: shadow-linux-x64
+          - target: bun-linux-arm64
+            artifact: shadow-linux-arm64
+          - target: bun-darwin-x64
+            artifact: shadow-darwin-x64
+          - target: bun-darwin-arm64
+            artifact: shadow-darwin-arm64
+          - target: bun-windows-x64
+            artifact: shadow-windows-x64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+      - name: Compile binary
+        run: |
+          outfile="${{ matrix.artifact }}"
+          if [[ "${{ matrix.target }}" == *windows* ]]; then
+            outfile="${outfile}.exe"
+          fi
+          bun build --compile --target=${{ matrix.target }} src/index.ts --outfile "$outfile"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}*
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/shadow-linux-x64/shadow-linux-x64
+            artifacts/shadow-linux-arm64/shadow-linux-arm64
+            artifacts/shadow-darwin-x64/shadow-darwin-x64
+            artifacts/shadow-darwin-arm64/shadow-darwin-arm64
+            artifacts/shadow-windows-x64/shadow-windows-x64.exe
+
+  publish-npm:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Prepare and publish npm packages
+        run: node scripts/publish-npm.mjs

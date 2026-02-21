@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "types": ["bun-types"]
+  },
+  "include": [
+    "src/index.ts",
+    "src/auth.ts",
+    "src/agent.ts",
+    "src/watcher.ts",
+    "src/scope.ts",
+    "src/prompt.ts",
+    "src/logger.ts",
+    "src/filter.ts",
+    "src/parallel.ts"
+  ]
+}
