@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "A file-watching coding agent that lets you import things before they exist.",
   "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/nilslice/shadow" },
   "bin": {
     "shadow": "bin.mjs"
   },

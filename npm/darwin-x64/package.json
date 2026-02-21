@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "shadow binary for macOS x64",
   "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/nilslice/shadow" },
   "os": ["darwin"],
   "cpu": ["x64"]
 }
