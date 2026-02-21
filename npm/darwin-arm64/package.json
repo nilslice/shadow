@@ -1,0 +1,8 @@
+{
+  "name": "@nilslice/shadow-darwin-arm64",
+  "version": "0.1.0",
+  "description": "shadow binary for macOS ARM64",
+  "license": "MIT",
+  "os": ["darwin"],
+  "cpu": ["arm64"]
+}

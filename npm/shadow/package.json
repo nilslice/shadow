@@ -1,0 +1,16 @@
+{
+  "name": "@nilslice/shadow",
+  "version": "0.1.0",
+  "description": "A file-watching coding agent that lets you import things before they exist.",
+  "license": "MIT",
+  "bin": {
+    "shadow": "bin.mjs"
+  },
+  "optionalDependencies": {
+    "@nilslice/shadow-darwin-arm64": "0.1.0",
+    "@nilslice/shadow-darwin-x64": "0.1.0",
+    "@nilslice/shadow-linux-arm64": "0.1.0",
+    "@nilslice/shadow-linux-x64": "0.1.0",
+    "@nilslice/shadow-windows-x64": "0.1.0"
+  }
+}

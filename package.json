@@ -1,0 +1,21 @@
+{
+  "name": "shadow",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "shadow": "src/index.ts"
+  },
+  "scripts": {
+    "test": "bun test",
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun build --compile src/index.ts --outfile shadow",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.7"
+  }
+}
