@@ -15,6 +15,12 @@ shadow only creates or updates implementation files that your code imports. The 
 
 ## Quick start
 
+```sh
+npm install -g @nilslice/shadow
+```
+
+Or, clone and run from the project root:
+
 ```
 bun install
 bun src/index.ts
