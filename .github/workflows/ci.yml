@@ -89,3 +89,5 @@ jobs:
           path: artifacts
       - name: Prepare and publish npm packages
         run: node scripts/publish-npm.mjs
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
