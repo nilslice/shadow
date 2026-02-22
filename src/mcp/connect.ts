@@ -260,12 +260,15 @@ export async function authenticateMcpServers(
 
   // ── Phase 1: Silent probe ──
   const pending: PendingServer[] = [];
+  const connected: string[] = [];
+  const skipped: string[] = [];
 
   for (const [name, config] of remoteEntries) {
     if (!isRemoteServer(config)) continue;
 
     // Skip servers with explicit Authorization header
     if (config.headers?.Authorization || config.headers?.authorization) {
+      connected.push(name);
       if (verbose) {
         logger.verbose(`MCP server '${name}': using existing Authorization header`);
       }
@@ -276,9 +279,20 @@ export async function authenticateMcpServers(
 
     if (probe.status === "authorized") {
       config.headers = { ...config.headers, Authorization: `Bearer ${probe.token}` };
+      connected.push(name);
     } else if (probe.status === "needs_auth") {
       pending.push({ name, url: config.url, provider: probe.provider });
+    } else {
+      skipped.push(name);
     }
+  }
+
+  // ── Report connection status ──
+  if (connected.length > 0) {
+    console.log(`${DIM}MCP${RESET} ${connected.map((n) => `${GREEN}${n}${RESET}`).join(", ")}`);
+  }
+  if (skipped.length > 0) {
+    console.log(`${DIM}MCP${RESET} ${skipped.map((n) => `${YELLOW}${n}${RESET} ${DIM}(no auth)${RESET}`).join(", ")}`);
   }
 
   // ── Phase 2: Interactive menu ──
