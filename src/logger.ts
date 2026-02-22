@@ -115,3 +115,5 @@ export const logger = {
     );
   },
 };
+
+export const colors = { RESET, DIM, GREEN, YELLOW, RED, CYAN, BOLD };

@@ -1,4 +1,4 @@
-import { resolve } from "node:path";
+import { resolve, join } from "node:path";
 import { existsSync } from "node:fs";
 import { ensureAuth } from "./auth";
 import { createShadowAgent, createWorkerAgent } from "./agent";
@@ -6,6 +6,7 @@ import { startWatcher } from "./watcher";
 import { findFilesWithUnresolvedImports, findFilesWithTypeHoles } from "./filter";
 import { logger } from "./logger";
 import { partitionWork } from "./parallel";
+import { authenticateMcpServers } from "./mcp/connect";
 
 function parseArgs(): {
   projectRoot: string;
@@ -78,6 +79,22 @@ async function main() {
     logger.dryRunBanner();
   }
 
+  // Load AGENTS.md if present (not handled by the SDK)
+  const agentsMdPath = join(projectRoot, "AGENTS.md");
+  let agentsInstructions: string | undefined;
+  if (existsSync(agentsMdPath)) {
+    const content = await Bun.file(agentsMdPath).text();
+    if (content.trim()) {
+      agentsInstructions = content;
+      if (verbose) {
+        logger.verbose("loaded AGENTS.md");
+      }
+    }
+  }
+
+  // Authenticate remote MCP servers via OAuth (if any in .mcp.json)
+  const mcpServers = await authenticateMcpServers(projectRoot, verbose);
+
   // Start watcher first, then create agent with watcher reference.
   // The callback captures `agent` by closure - it's assigned before
   // any file change can fire (debounce ensures a delay).
@@ -95,7 +112,7 @@ async function main() {
 
   const MAX_CASCADE_DEPTH = 3;
 
-  agent = createShadowAgent({ projectRoot, scopeDir, verbose, watcher, dryRun });
+  agent = createShadowAgent({ projectRoot, scopeDir, verbose, watcher, dryRun, agentsInstructions, mcpServers });
 
   async function onTrigger(changedFiles: string[], cascadeDepth = 0) {
     if (running && cascadeDepth === 0) {
@@ -158,6 +175,8 @@ async function main() {
             watcher,
             dryRun,
             workerId: group.id,
+            agentsInstructions,
+            mcpServers,
           }),
         );
 

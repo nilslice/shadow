@@ -53,6 +53,58 @@ shadow [project-root] [options]
 - `--parallel [n]` -- Run up to `n` agents concurrently for independent work (default: 3 when flag is present).
 - `--help`, `-h` -- Show usage information.
 
+## Project configuration
+
+shadow picks up configuration files from your project directory to customize agent behavior, connect external tools, and provide project-specific instructions.
+
+### CLAUDE.md
+
+Place a `CLAUDE.md` file (or `.claude/CLAUDE.md`) in your project root to give the agent persistent instructions — coding conventions, architectural rules, preferred libraries, etc. This is loaded automatically by the Claude Agent SDK.
+
+### AGENTS.md
+
+Place an `AGENTS.md` file in your project root to provide agent-specific guidance. This is appended to shadow's system prompt and is useful for instructions that apply specifically to shadow's code generation behavior (e.g. "always use Zod for validation schemas", "prefer interfaces over type aliases").
+
+### MCP servers
+
+Place a `.mcp.json` file in your project root to connect MCP (Model Context Protocol) servers. Local (stdio) servers are loaded automatically by the Claude Agent SDK. Example:
+
+```json
+{
+  "mcpServers": {
+    "postgres": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "--connection-string", "postgresql://localhost/mydb"]
+    }
+  }
+}
+```
+
+Remote servers (`"type": "http"` or `"type": "sse"`) support OAuth 2.1 authentication. On first run, shadow will open your browser for authorization and cache the tokens in `~/.shadow/mcp-auth.json`. Subsequent runs use the cached tokens and refresh them automatically.
+
+```json
+{
+  "mcpServers": {
+    "remote-api": {
+      "type": "http",
+      "url": "https://api.example.com/mcp"
+    }
+  }
+}
+```
+
+shadow implements the full MCP authorization spec: Protected Resource Metadata discovery (RFC 9728), Authorization Server Metadata discovery (RFC 8414), OAuth 2.1 with PKCE, and Dynamic Client Registration (RFC 7591). If you have a pre-registered client ID, set the `Authorization` header directly and shadow will skip the OAuth flow for that server.
+
+### Custom agents and skills
+
+The SDK supports subagent and skill definitions from standard `.claude/` paths:
+
+- `.claude/agents/*.md` -- Define custom subagents the agent can delegate to.
+- `.claude/skills/*.md` -- Define reusable skills the agent can invoke.
+
+These are loaded automatically via `settingSources: ["project"]`.
+
 ## Building
 
 Compile to a standalone binary:
@@ -67,15 +119,20 @@ This produces a `shadow` executable in the project root.
 
 ```
 src/
-  index.ts      CLI entry point, argument parsing, watcher/agent orchestration
-  auth.ts       Credential detection and OAuth PKCE authentication flow
-  agent.ts      Claude Agent SDK session management and message handling
-  watcher.ts    File system watcher with debounce and feedback loop prevention
-  filter.ts     Pre-filter: import resolution + type-hole detection
-  scope.ts      PreToolUse hook that enforces write boundaries
-  prompt.ts     System prompt and per-trigger prompt construction with diffing
-  parallel.ts   Work partitioning for parallel agent execution
-  logger.ts     Colored terminal output
+  index.ts        CLI entry point, argument parsing, watcher/agent orchestration
+  auth.ts         Credential detection and OAuth PKCE authentication flow
+  agent.ts        Claude Agent SDK session management and message handling
+  watcher.ts      File system watcher with debounce and feedback loop prevention
+  filter.ts       Pre-filter: import resolution + type-hole detection
+  scope.ts        PreToolUse hook that enforces write boundaries
+  prompt.ts       System prompt and per-trigger prompt construction with diffing
+  parallel.ts     Work partitioning for parallel agent execution
+  logger.ts       Colored terminal output
+  mcp/
+    connect.ts        Read .mcp.json, authenticate remote servers, return config
+    oauth-provider.ts OAuthClientProvider for the MCP SDK
+    oauth-callback.ts Local HTTP server for OAuth redirect callbacks
+    auth-store.ts     Token and client credential persistence
 ```
 
 ### auth.ts
@@ -185,7 +242,7 @@ bun run typecheck
 
 ### Guidelines
 
-- Keep dependencies minimal. The only runtime dependency is `@anthropic-ai/claude-agent-sdk`.
+- Keep dependencies minimal. Runtime dependencies are `@anthropic-ai/claude-agent-sdk` and `@modelcontextprotocol/sdk` (for MCP OAuth).
 - The pre-filter (`filter.ts`) is the first place to add support for new languages.
 - Hooks in `scope.ts` are the safety boundary. Changes here should be conservative.
 - Test changes by running `shadow` against a sample project with unresolved imports and verifying that the agent generates correct implementations without modifying user files.
