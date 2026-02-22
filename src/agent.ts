@@ -15,6 +15,7 @@ import { createScopeHook } from "./scope";
 import { systemPrompt, buildPrompt, buildWorkerPrompt } from "./prompt";
 import { logger } from "./logger";
 import type { WatcherHandle } from "./watcher";
+import type { McpServersMap } from "./mcp/connect";
 
 export type UnresolvedHint = { file: string; unresolved: string[] };
 export type { TypeHoleResult } from "./filter";
@@ -34,8 +35,10 @@ export function createShadowAgent(options: {
   verbose: boolean;
   watcher?: WatcherHandle;
   dryRun?: boolean;
+  agentsInstructions?: string;
+  mcpServers?: McpServersMap;
 }): ShadowAgent {
-  const { projectRoot, scopeDir, verbose, watcher, dryRun = false } = options;
+  const { projectRoot, scopeDir, verbose, watcher, dryRun = false, agentsInstructions, mcpServers } = options;
 
   let sessionId: string | undefined;
   let currentTriggerFiles: string[] = [];
@@ -148,12 +151,14 @@ export function createShadowAgent(options: {
       prompt,
       options: {
         cwd: projectRoot,
-        systemPrompt: systemPrompt(projectRoot),
+        systemPrompt: systemPrompt(projectRoot, agentsInstructions),
+        settingSources: ["project"],
         allowedTools: ["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
         permissionMode: "bypassPermissions",
         allowDangerouslySkipPermissions: true,
         maxTurns: 20,
         ...(sessionId ? { resume: sessionId } : {}),
+        ...(mcpServers ? { mcpServers } : {}),
         hooks: {
           PreToolUse: [
             {
@@ -263,6 +268,8 @@ export function createWorkerAgent(options: {
   dryRun?: boolean;
   workerId: number;
   claimedPaths?: Set<string>;
+  agentsInstructions?: string;
+  mcpServers?: McpServersMap;
 }): ShadowAgent {
   const {
     projectRoot,
@@ -272,6 +279,8 @@ export function createWorkerAgent(options: {
     dryRun = false,
     workerId,
     claimedPaths,
+    agentsInstructions,
+    mcpServers,
   } = options;
 
   let sessionId: string | undefined;
@@ -346,11 +355,13 @@ export function createWorkerAgent(options: {
       prompt,
       options: {
         cwd: projectRoot,
-        systemPrompt: systemPrompt(projectRoot),
+        systemPrompt: systemPrompt(projectRoot, agentsInstructions),
+        settingSources: ["project"],
         allowedTools: ["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
         permissionMode: "bypassPermissions",
         allowDangerouslySkipPermissions: true,
         maxTurns: 10,
+        ...(mcpServers ? { mcpServers } : {}),
         hooks: {
           PreToolUse: [
             {
