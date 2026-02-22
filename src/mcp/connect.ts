@@ -288,11 +288,20 @@ export async function authenticateMcpServers(
   }
 
   // ── Report connection status ──
-  if (connected.length > 0) {
-    console.log(`${DIM}MCP${RESET} ${connected.map((n) => `${GREEN}${n}${RESET}`).join(", ")}`);
-  }
-  if (skipped.length > 0) {
-    console.log(`${DIM}MCP${RESET} ${skipped.map((n) => `${YELLOW}${n}${RESET} ${DIM}(no auth)${RESET}`).join(", ")}`);
+  const allStatuses: { name: string; label: string }[] = [
+    ...connected.map((n) => ({ name: n, label: `${GREEN}connected${RESET}` })),
+    ...skipped.map((n) => ({ name: n, label: `${YELLOW}no auth${RESET}` })),
+    ...pending.map((s) => ({ name: s.name, label: `${YELLOW}needs auth${RESET}` })),
+  ];
+
+  if (allStatuses.length > 0) {
+    const maxName = Math.max(...allStatuses.map((s) => s.name.length));
+    console.log();
+    for (const { name, label } of allStatuses) {
+      const dots = ".".repeat(Math.max(2, maxName - name.length + 12));
+      console.log(`  ${name} ${DIM}${dots}${RESET} ${label}`);
+    }
+    console.log();
   }
 
   // ── Phase 2: Interactive menu ──
